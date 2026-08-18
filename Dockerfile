@@ -7,6 +7,7 @@ ENV HF_HUB_ENABLE_HF_TRANSFER=0
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
+    build-essential \
     python3-pip \
     python3-dev \
     ffmpeg \
@@ -15,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     libsox-fmt-all \
     git \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
 
 RUN pip3 install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 
@@ -34,7 +37,7 @@ RUN pip3 install --no-cache-dir \
     sentencepiece \
     protobuf
 
-# Clone repository and install in standard mode
+# Clone repository and install
 RUN git clone https://github.com/QwenLM/Qwen3-TTS.git /app/Qwen3-TTS && \
     cd /app/Qwen3-TTS && \
     pip3 install --no-cache-dir .
