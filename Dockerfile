@@ -24,7 +24,9 @@ RUN pip3 install --no-cache-dir \
     transformers \
     accelerate \
     huggingface_hub \
-    requests
+    requests \
+    librosa \
+    einops
 
 # Clone repository and install in standard mode
 RUN git clone https://github.com/QwenLM/Qwen3-TTS.git /app/Qwen3-TTS && \
