@@ -81,7 +81,8 @@ def handler(job):
             wavs_anchor, sr = model_design.generate_voice_design(
                 text=anchor_text, language="English", instruct=instruct, temperature=0.65
             )
-            prompt_items = model_design.create_voice_clone_prompt(
+            # Use model_base to extract the reusable clone prompt tensor
+            prompt_items = model_base.create_voice_clone_prompt(
                 ref_audio=(wavs_anchor[0], sr), ref_text=anchor_text, x_vector_only_mode=False
             )
 
