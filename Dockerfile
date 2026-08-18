@@ -23,12 +23,13 @@ RUN pip3 install --no-cache-dir \
     soundfile \
     transformers \
     accelerate \
-    huggingface_hub
+    huggingface_hub \
+    requests
 
 RUN pip3 install --no-cache-dir git+https://github.com/QwenLM/Qwen3-TTS.git
 
-# Download weights directly to HF cache without initializing CUDA
-RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-1.7B-Base')"
+# Download BOTH weights directly to HF cache
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-1.7B-Base'); snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign')"
 
 COPY handler.py /app/handler.py
 
