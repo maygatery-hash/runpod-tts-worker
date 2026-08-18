@@ -68,16 +68,15 @@ def upload_tensor(tensor_data, object_key):
 
 def handler(job):
     job_input = job["input"]
-    task = job_input.get("task", "render") 
+    task = job_input.get("task", "render")
     job_id = job_input.get("job_id", f"job_{int(time.time())}")
     t_start = time.time()
 
     if task == "design_voice":
-        # 1. User designs a voice from a prompt
         instruct = job_input["instruct"]
         anchor_text = job_input["anchor_text"]
         target_voice_key = job_input.get("target_voice_key", f"voices/{job_id}.pt")
-        
+
         with torch.inference_mode():
             wavs_anchor, sr = model_design.generate_voice_design(
                 text=anchor_text, language="English", instruct=instruct, temperature=0.65
@@ -85,15 +84,19 @@ def handler(job):
             prompt_items = model_design.create_voice_clone_prompt(
                 ref_audio=(wavs_anchor[0], sr), ref_text=anchor_text, x_vector_only_mode=False
             )
-        
+
         upload_tensor(prompt_items, target_voice_key)
         mastered_audio = apply_production_mastering(wavs_anchor[0], sr, target_lufs=-16.0)
         audio_url = upload_audio(mastered_audio, sr, f"renders/{job_id}_preview.mp3")
-        
-        return {"status": "success", "task": task, "voice_prompt_key": target_voice_key, "preview_audio_url": audio_url}
+
+        return {
+            "status": "success",
+            "task": task,
+            "voice_prompt_key": target_voice_key,
+            "preview_audio_url": audio_url,
+        }
 
     elif task == "clone_voice":
-        # 2. User uploads their own audio file
         ref_audio_url = job_input["ref_audio_url"]
         ref_text = job_input["ref_text"]
         preview_text = job_input["preview_text"]
@@ -116,10 +119,14 @@ def handler(job):
         mastered_audio = apply_production_mastering(wavs_preview[0], sr, target_lufs=-16.0)
         audio_url = upload_audio(mastered_audio, sr, f"renders/{job_id}_preview.mp3")
 
-        return {"status": "success", "task": task, "voice_prompt_key": target_voice_key, "preview_audio_url": audio_url}
+        return {
+            "status": "success",
+            "task": task,
+            "voice_prompt_key": target_voice_key,
+            "preview_audio_url": audio_url,
+        }
 
     elif task == "render":
-        # 3. User renders a full script using a saved voice (Your exact original loop)
         voice_prompt_key = job_input["voice_prompt_key"]
         script_json = job_input["script_json"]
         batch_size = job_input.get("batch_size", 8)
@@ -172,3 +179,6 @@ def handler(job):
             "audio_duration_minutes": round(total_duration_min, 2),
             "gpu_render_time_seconds": round(render_time_sec, 2),
         }
+
+
+runpod.serverless.start({"handler": handler})
