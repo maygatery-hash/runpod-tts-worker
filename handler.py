@@ -35,6 +35,18 @@ R2_BUCKET = os.environ.get("R2_BUCKET")
 R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL", "").rstrip("/")
 
 
+def trim_audio_silence(audio, sr=24000, threshold=0.005, pad_sec=0.05):
+  """Trims dead silence from start and end while preserving natural decay padding."""
+  abs_audio = np.abs(audio)
+  non_silent_indices = np.where(abs_audio > threshold)[0]
+  if len(non_silent_indices) == 0:
+    return audio
+  pad_samples = int(sr * pad_sec)
+  start_idx = max(0, non_silent_indices[0] - pad_samples)
+  end_idx = min(len(audio), non_silent_indices[-1] + pad_samples)
+  return audio[start_idx:end_idx]
+
+
 def apply_production_mastering(audio_data, sample_rate, target_lufs=-16.0):
   audio = audio_data.astype(np.float32)
   b, a = signal.butter(4, 80.0 / (sample_rate / 2.0), btype="high")
@@ -226,10 +238,12 @@ def handler(job):
           audio_segments[batch_start + i] = wav
 
     stitched_chunks = []
-    for wav in audio_segments:
-      stitched_chunks.append(wav)
-      silence = np.zeros(int(sr * 0.50), dtype=wav.dtype)
-      stitched_chunks.append(silence)
+    for idx, wav in enumerate(audio_segments):
+      trimmed = trim_audio_silence(wav, sr=sr, threshold=0.005, pad_sec=0.05)
+      stitched_chunks.append(trimmed)
+      if idx < total_acts - 1:
+        silence = np.zeros(int(sr * 0.20), dtype=wav.dtype)
+        stitched_chunks.append(silence)
 
     raw_master = np.concatenate(stitched_chunks)
     mastered_audio = apply_production_mastering(
