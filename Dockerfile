@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     ffmpeg \
+    sox \
+    libsox-dev \
+    libsox-fmt-all \
     git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,7 +29,10 @@ RUN pip3 install --no-cache-dir \
     huggingface_hub \
     requests \
     librosa \
-    einops
+    einops \
+    sox \
+    sentencepiece \
+    protobuf
 
 # Clone repository and install in standard mode
 RUN git clone https://github.com/QwenLM/Qwen3-TTS.git /app/Qwen3-TTS && \
