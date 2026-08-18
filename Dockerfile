@@ -26,9 +26,14 @@ RUN pip3 install --no-cache-dir \
     huggingface_hub \
     requests
 
-RUN pip3 install --no-cache-dir git+https://github.com/QwenLM/Qwen3-TTS.git
+# Clone repository directly and install in editable mode
+RUN git clone https://github.com/QwenLM/Qwen3-TTS.git /app/Qwen3-TTS && \
+    cd /app/Qwen3-TTS && \
+    pip3 install --no-cache-dir -e .
 
-# Download BOTH weights directly to HF cache
+ENV PYTHONPATH="/app/Qwen3-TTS:${PYTHONPATH}"
+
+# Download model weights to HF cache
 RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-1.7B-Base'); snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign')"
 
 COPY handler.py /app/handler.py
