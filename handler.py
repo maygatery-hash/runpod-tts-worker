@@ -1,3 +1,4 @@
+import base64
 import io
 import os
 import subprocess
@@ -159,29 +160,51 @@ def handler(job):
     }
 
   elif task == "clone_voice":
-    ref_audio_url = job_input["ref_audio_url"]
+    ref_audio_url = job_input.get("ref_audio_url")
+    ref_audio_base64 = job_input.get("ref_audio_base64")
     ref_text = job_input["ref_text"]
-    preview_text = job_input["preview_text"]
+    preview_text = job_input.get(
+        "preview_text", "Voice clone initialized successfully..."
+    )
     target_voice_key = job_input.get("target_voice_key", f"voices/{job_id}.pt")
 
-    response = requests.get(ref_audio_url)
     ref_audio_path = f"/tmp/{job_id}_ref.wav"
-    with open(ref_audio_path, "wb") as f:
-      f.write(response.content)
 
-    with torch.inference_mode():
-      prompt_items = model_base.create_voice_clone_prompt(
-          ref_audio=ref_audio_path, ref_text=ref_text, x_vector_only_mode=False
-      )
-      wavs_preview, sr = model_base.generate_voice_clone(
-          text=[preview_text],
-          language="English",
-          voice_clone_prompt=prompt_items,
-          temperature=0.70,
-      )
+    try:
+      if ref_audio_base64:
+        if "," in ref_audio_base64:
+          ref_audio_base64 = ref_audio_base64.split(",", 1)[1]
+        audio_bytes = base64.b64decode(ref_audio_base64)
+        with open(ref_audio_path, "wb") as f:
+          f.write(audio_bytes)
+      elif ref_audio_url:
+        response = requests.get(ref_audio_url, timeout=30)
+        response.raise_for_status()
+        with open(ref_audio_path, "wb") as f:
+          f.write(response.content)
+      else:
+        return {
+            "status": "error",
+            "message": (
+                "Either 'ref_audio_url' or 'ref_audio_base64' must be provided."
+            ),
+        }
 
-    if os.path.exists(ref_audio_path):
-      os.remove(ref_audio_path)
+      with torch.inference_mode():
+        prompt_items = model_base.create_voice_clone_prompt(
+            ref_audio=ref_audio_path,
+            ref_text=ref_text,
+            x_vector_only_mode=False,
+        )
+        wavs_preview, sr = model_base.generate_voice_clone(
+            text=[preview_text],
+            language="English",
+            voice_clone_prompt=prompt_items,
+            temperature=0.70,
+        )
+    finally:
+      if os.path.exists(ref_audio_path):
+        os.remove(ref_audio_path)
 
     upload_tensor(prompt_items, target_voice_key)
     mastered_audio = apply_production_mastering(
@@ -221,7 +244,7 @@ def handler(job):
         temps = [
             item.get("recommended_temperature", 0.70) for item in batch_items
         ]
-        batch_temp = float(np.clip(np.mean(temps), 0.68, 0.74))
+        batch_temp = float(np.clip(np.mean(temps), 0.65, 0.78))
 
         torch.manual_seed(42 + batch_start)
         if torch.cuda.is_available():
